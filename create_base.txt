@@ -1,0 +1,192 @@
+! 文件: create_base.trail.1
+! ProE 5.0 中文版 1080P全屏
+! 开始时间: 2024-01-01 10:00:00
+
+! 设置工作目录（需提前设置好）
+! 开始新会话
+
+~ Activate `main_dlg_cur` `ProCmdModelNew.file_new`
+~ Select `new` `Type` 1 `Part`
+~ Select `new` `Subtype` 1 `Solid`
+~ Input `new` `InputPanel1` `BASE`
+~ Select `new` `template_inp` `mmns_part_solid`
+~ Activate `new` `OK`
+! 已创建新零件 BASE
+
+! ========== 特征1：RIGHT基准平面 ==========
+~ Command `ProCmdDatumPlane` 
+~ Activate `dtm_planes` `yz_plane`
+~ Update `dtm_planes` `text` `RIGHT`
+~ Activate `dtm_planes` `OK`
+! RIGHT基准平面创建完成
+
+! ========== 特征2：TOP基准平面 ==========
+~ Command `ProCmdDatumPlane` 
+~ Activate `dtm_planes` `zx_plane`
+~ Update `dtm_planes` `text` `TOP`
+~ Activate `dtm_planes` `OK`
+! TOP基准平面创建完成
+
+! ========== 特征3：FRONT基准平面 ==========
+~ Command `ProCmdDatumPlane` 
+~ Activate `dtm_planes` `xy_plane`
+~ Update `dtm_planes` `text` `FRONT`
+~ Activate `dtm_planes` `OK`
+! FRONT基准平面创建完成
+
+! ========== 特征4：坐标系 ==========
+~ Command `ProCmdCsysCreateDef` 
+~ Activate `csys_constr` `OK`
+! 坐标系创建完成
+
+! ========== 特征5：第一个草绘（拉伸截面）==========
+! 将创建拉伸特征
+~ Command `ProCmdFtExtrude` 
+! 选择草绘平面
+~ Select `extrude` `Placement` 1 `Sketch`
+~ Activate `extrude` `Placement` 1 `Sketch`
+! 选择FRONT平面
+~ Select `setup` `plane_srf` 1 `FRONT`
+! 方向设置
+~ Activate `sket_orient` `orient_fb`
+~ Select `sket_orient` `ref1` 1 `RIGHT`
+~ Select `sket_orient` `orientations` 1 `bottom`
+~ Activate `sket_orient` `OK`
+! 进入草绘环境
+! ========== 请在此处手动绘制草绘1 ==========
+! 
+! 草绘1尺寸：
+! 矩形：宽度 d0 = 80.53, 高度 d1 = 162.69
+! 
+! 完成后点击"确定"
+! 
+~ Activate `sketcher` `OK`
+! 退出草绘
+
+! 设置拉伸深度
+~ Update `extrude` `depthip` `54.63`
+~ Activate `extrude` `OK`
+! 第一个拉伸特征完成
+
+! ========== 特征7：第二个草绘（第一个孔）==========
+~ Command `ProCmdFtExtrude` 
+! 切换为切剪模式
+~ Select `extrude` `type` 1 `Cut`
+! 选择草绘平面
+~ Select `extrude` `Placement` 1 `Sketch`
+~ Activate `extrude` `Placement` 1 `Sketch`
+! 选择拉伸特征的顶面
+! （需要手动选择，Trail无法记录曲面选择）
+! 请手动点击拉伸特征的上表面
+! 
+! 方向设置
+~ Activate `sket_orient` `orient_fb`
+~ Select `sket_orient` `ref1` 1 `RIGHT`
+~ Select `sket_orient` `orientations` 1 `bottom`
+~ Activate `sket_orient` `OK`
+! 进入草绘环境
+! ========== 请在此处手动绘制草绘2 ==========
+! 
+! 草绘2（第一个孔）：
+! 圆形：直径 d5 = 20.15
+! 位置：距离参照 d6 = 35.38, d7 = 109.78
+! 
+! 完成后点击"确定"
+! 
+~ Activate `sketcher` `OK`
+! 设置切剪深度
+~ Update `extrude` `depthopts` `Through All`
+~ Activate `extrude` `OK`
+! 第一个孔完成
+
+! ========== 特征9：第三个草绘（第二个孔）==========
+~ Command `ProCmdFtExtrude` 
+~ Select `extrude` `type` 1 `Cut`
+~ Select `extrude` `Placement` 1 `Sketch`
+~ Activate `extrude` `Placement` 1 `Sketch`
+! 请手动选择拉伸特征的顶面
+! 
+! 方向设置
+~ Activate `sket_orient` `orient_fb`
+! 选择上表面作为参照
+~ Select `sket_orient` `ref1` 1 `Surface`
+! 需要手动选择曲面
+~ Activate `sket_orient` `OK`
+! 进入草绘环境
+! ========== 请在此处手动绘制草绘3 ==========
+! 
+! 草绘3（第二个孔）：
+! 圆形：直径 d39 = 9.74
+! 位置：距离参照 d40 = 13.13, d41 = 40.83
+! 
+! 完成后点击"确定"
+! 
+~ Activate `sketcher` `OK`
+~ Update `extrude` `depthopts` `Through All`
+~ Activate `extrude` `OK`
+! 第二个孔完成
+
+! ========== 特征11：第四个草绘（多个孔）==========
+~ Command `ProCmdFtExtrude` 
+~ Select `extrude` `type` 1 `Cut`
+~ Select `extrude` `Placement` 1 `Sketch`
+~ Activate `extrude` `Placement` 1 `Sketch`
+! 请手动选择拉伸特征的顶面
+! 
+! 方向设置
+~ Activate `sket_orient` `orient_fb`
+~ Select `sket_orient` `ref1` 1 `Surface`
+! 需要手动选择曲面
+~ Activate `sket_orient` `OK`
+! 进入草绘环境
+! ========== 请在此处手动绘制草绘4 ==========
+! 
+! 草绘4（多个孔阵列）：
+! 圆形1：直径 d55 = 4.54, 位置 d56 = 34.45, d57 = 45.43
+! 圆形2：直径 d66 = 8.12, 位置 d67 = 16.53, d68 = 26.42
+! 距离标注：d64 = 29.39, d65 = 63.79
+! 
+! 完成后点击"确定"
+! 
+~ Activate `sketcher` `OK`
+~ Update `extrude` `depthopts` `Through All`
+~ Activate `extrude` `OK`
+! 多孔特征完成
+
+! ========== 特征13：第五个草绘（最后切剪）==========
+~ Command `ProCmdFtExtrude` 
+~ Select `extrude` `type` 1 `Cut`
+~ Select `extrude` `Placement` 1 `Sketch`
+~ Activate `extrude` `Placement` 1 `Sketch`
+! 请手动选择拉伸特征的顶面
+! 
+! 方向设置
+~ Activate `sket_orient` `orient_fb`
+~ Select `sket_orient` `ref1` 1 `RIGHT`
+~ Select `sket_orient` `orientations` 1 `bottom`
+~ Activate `sket_orient` `OK`
+! 进入草绘环境
+! ========== 请在此处手动绘制草绘5 ==========
+! 
+! 草绘5（复杂轮廓）：
+! 主要尺寸：
+! d78 = 2.4, d79 = 11.36, d80 = 6.2
+! d81 = 158.88, d82 = 13.98, d83 = 4.25
+! d84 = 51.62
+! 
+! 完成后点击"确定"
+! 
+~ Activate `sketcher` `OK`
+! 设置深度
+~ Update `extrude` `depthip` `5.00`
+~ Activate `extrude` `OK`
+! 最后切剪完成
+
+! ========== 保存文件 ==========
+~ Select `main_dlg_cur` `MenuBar1` 1 `文件`
+~ Select `main_dlg_cur` `File.cb_file_save`
+~ Activate `file_saveas` `OK`
+! 文件保存完成
+
+! Trail文件结束
+! 总耗时: 约3分钟（含手动草绘时间）

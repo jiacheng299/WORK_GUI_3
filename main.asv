@@ -1,0 +1,259 @@
+% Used for Motion Planning for Mobile Robots
+% Thanks to HKUST ELEC 5660 
+close all; clear all; clc;
+
+fprintf('====================================\n');
+fprintf('多功能模块数字孪生可视化软件 - MATLAB路径规划模块\n');
+fprintf('====================================\n');
+
+% 禁用图形警告
+warning('off', 'MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame');
+set(0, 'DefaultFigureVisible', 'off');
+
+%% 记录总开始时间
+total_start_time = tic;
+
+%% YUXIN:输入端
+MAX_X = 100; %% 蜂窝夹层板的长
+MAX_Y = 100; %% 蜂窝夹层板的宽
+wang_length = 10; %%% 电缆线组件的宽
+
+fprintf('开始加载输入文件...\n');
+load_start_time = tic;
+device = load('device.txt'); %% 障碍物（矩形电连接器/蜂窝打孔）的左下角横坐标|左下角纵坐标|右上角横坐标|右上角纵坐标
+connect_NODE_set = load('connectFile.txt'); %% 连接器I中心点横坐标|连接器I中心点纵坐标|连接器I出线方向|连接器II中心点横坐标|连接器II中心点纵坐标|连接器II出线方向|最小引出段直线段长|最小弯折半径|
+load_time = toc(load_start_time);
+fprintf('文件加载完成，耗时: %.2f 秒\n', load_time);
+%% YUXIN:输入端结束
+
+fprintf('开始创建障碍物地图...\n');
+map_start_time = tic;
+map = obstacle_map(device,connect_NODE_set,wang_length,MAX_X,MAX_Y);
+map_time = toc(map_start_time);
+fprintf('障碍物地图创建完成，耗时: %.2f 秒\n', map_time);
+
+size_set = size(connect_NODE_set,1);
+fprintf('====================================\n');
+fprintf('共有 %d 条路径需要规划\n', size_set);
+fprintf('====================================\n');
+
+PATHS = cell(1,size_set); %% 1103建立合适大小的空元胞数组 
+
+%% 记录每条路径的规划时间
+path_planning_times = zeros(size_set, 1);
+
+% 创建日志文件
+log_file = fopen('path_planning_log.txt', 'w');
+fprintf(log_file, '路径规划日志 - %s\n', datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+fprintf(log_file, '==========================================\n');
+
+for k = 1:size_set
+    fprintf('\n--- 正在规划第 %d/%d 条路径 ---\n', k, size_set);
+    fprintf(log_file, '\n--- 第 %d/%d 条路径 ---\n', k, size_set);
+    
+    % 显示进度
+    if mod(k, 5) == 0 || k == size_set
+        fprintf('  进度: %d/%d (%.1f%%)，已耗时: %.1f秒\n', ...
+            k, size_set, k/size_set*100, toc(total_start_time));
+    end
+    
+    xStart = connect_NODE_set(k,1);
+    yStart = connect_NODE_set(k,2);
+    xTarget = connect_NODE_set(k,4);
+    yTarget = connect_NODE_set(k,5);
+    
+    lead_length = connect_NODE_set(k,7);
+    lead_direction_Start = connect_NODE_set(k,3);
+    lead_direction_Target = connect_NODE_set(k,6);
+    
+    R = connect_NODE_set(k,8);  %%% LIU:最小弯折半径
+    back_num = ceil(R/wang_length); %% 当前父节点回溯点个数，向上取整
+    lead_node_num = ceil(lead_length/wang_length);
+    
+    real = REAL(lead_length,R,wang_length,lead_direction_Start,xStart,yStart,lead_direction_Target,xTarget,yTarget);
+    
+    % Waypoint Generator Using the A*
+    fprintf('  开始A*路径搜索...\n');
+    path_start_time = tic;
+    multi_already=[
+    path = A_star_search(map,real,multi_already,MAX_X,MAX_Y,R,back_num);
+    path_time = toc(path_start_time);
+    path_planning_times(k) = path_time;
+    fprintf('  路径搜索完成，耗时: %.2f 秒\n', path_time);
+    
+    if (~isempty(path))
+        PATHS{k} = path;
+        fprintf('  找到有效路径，路径点数量: %d\n', size(path,1));
+        fprintf(log_file, '  成功找到路径，点数量: %d，耗时: %.2f秒\n', size(path,1), path_time);
+        
+        % 输出路径详细信息到日志
+        fprintf(log_file, '  起点: (%.2f, %.2f)\n', xStart, yStart);
+        fprintf(log_file, '  终点: (%.2f, %.2f)\n', xTarget, yTarget);
+        fprintf(log_file, '  路径点:\n');
+        for i = 1:min(5, size(path,1)) % 只输出前5个点
+            fprintf(log_file, '    %d: (%.2f, %.2f)\n', i, path(i,1), path(i,2));
+        end
+        if size(path,1) > 5
+            fprintf(log_file, '    ... 还有 %d 个点\n', size(path,1)-5);
+        end
+    else
+        fprintf('  警告: 未找到有效路径!\n');
+        fprintf(log_file, '  警告: 未找到有效路径!\n');
+    end
+end
+
+%% 计算总运行时间
+total_time = toc(total_start_time);
+
+%% YUXIN:输出端将PATHS元胞数组中拐点找出保留，可通过判断进行。
+% 打开文件用于写入 guaidian.txt
+fileID1 = fopen('guaidian.txt', 'w');
+fprintf(fileID1, '拐点文件 - 生成时间: %s\n', datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+fprintf(fileID1, '==========================================\n');
+
+% 打开文件用于写入扩展拐点的文件 guaidian_extended.txt
+fileID2 = fopen('guaidian_extended.txt', 'w');
+fprintf(fileID2, '扩展拐点文件 - 生成时间: %s\n', datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+fprintf(fileID2, '==========================================\n');
+
+% 遍历每条路径
+for k = 1:length(PATHS)
+    path = PATHS{k};
+    
+    R = connect_NODE_set(k,8)/2;
+    % 如果路径为空，则跳过
+    if isempty(path)
+        fprintf(fileID1, '\n路径 %d: 无有效路径\n', k);
+        fprintf(fileID2, '\n路径 %d: 无有效路径\n', k);
+        continue;
+    end
+    
+    fprintf(fileID1, '\n路径 %d: 总点数 = %d\n', k, size(path,1));
+    fprintf(fileID2, '\n路径 %d: 总点数 = %d\n', k, size(path,1));
+    
+    % 初始化拐点数组，包含起点
+    guaidian = path(1, :);
+    
+    % 初始化扩展后的拐点数组
+    guaidian_extended = path(1, :); % 起点直接加入
+    
+    % 遍历路径中的点，找到拐点
+    for i = 2:size(path, 1)-1
+        % 当前点与前后点
+        prev_point = path(i-1, :);
+        curr_point = path(i, :);
+        next_point = path(i+1, :);
+        
+        % 判断方向变化，通过斜率变化检测拐点
+        prev_direction = atan2(curr_point(2) - prev_point(2), curr_point(1) - prev_point(1));
+        next_direction = atan2(next_point(2) - curr_point(2), next_point(1) - curr_point(1));
+        
+        % 如果方向有明显变化，则当前点是拐点
+        if abs(prev_direction - next_direction) > 1e-3  % 方向变化的阈值
+            guaidian = [guaidian; curr_point];
+            
+            % 计算扩展的三个点
+            unit_prev = (prev_point - curr_point) / norm(curr_point - prev_point);
+            unit_next = (next_point - curr_point) / norm(next_point - curr_point);
+            
+            % 第一个点：拐点向上一点方向移动 R
+            p1 = curr_point + R * unit_prev;
+            
+            % 第二个点：拐点向上一点方向移动 (1 - √2/2)R，向下一点方向移动 (1 - √2/2)R
+            offset = (1 - sqrt(2) / 2) * R;
+            p2 = curr_point + offset * unit_prev + offset * unit_next;
+            
+            % 第三个点：拐点向下一点方向移动 R
+            p3 = curr_point + R * unit_next;
+            
+            % 加入扩展后的拐点数组
+            guaidian_extended = [guaidian_extended; p1; p2; p3];
+        end
+    end
+    
+    % 将终点也作为拐点
+    guaidian = [guaidian; path(end, :)];
+    guaidian_extended = [guaidian_extended; path(end, :)]; % 终点直接加入
+    
+    % 将拐点信息写入 guaidian.txt
+    fprintf(fileID1, '拐点 %d (共 %d 个):\n', k, size(guaidian,1));
+    for i = 1:size(guaidian,1)
+        fprintf(fileID1, '  %.2f,%.2f\n', guaidian(i,1), guaidian(i,2));
+    end
+    
+    % 将扩展拐点信息写入 guaidian_extended.txt
+    fprintf(fileID2, '扩展拐点 %d (共 %d 个):\n', k, size(guaidian_extended,1));
+    for i = 1:size(guaidian_extended,1)
+        fprintf(fileID2, '  %.2f,%.2f\n', guaidian_extended(i,1), guaidian_extended(i,2));
+    end
+end
+
+% 关闭文件
+fclose(fileID1);
+fclose(fileID2);
+fclose(log_file);
+
+%% 生成简化的总结报告到文件
+fileID3 = fopen('runtime_summary.txt', 'w');
+fprintf(fileID3, '多功能模块数字孪生可视化软件 - 运行时间报告\n');
+fprintf(fileID3, '==========================================\n');
+fprintf(fileID3, '生成时间: %s\n', datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+fprintf(fileID3, '总路径数: %d\n', size_set);
+fprintf(fileID3, '总运行时间: %.2f 秒\n', total_time);
+fprintf(fileID3, '平均每路径: %.2f 秒\n', total_time/size_set);
+fprintf(fileID3, '\n时间明细:\n');
+fprintf(fileID3, '  文件加载: %.2f 秒\n', load_time);
+fprintf(fileID3, '  地图创建: %.2f 秒\n', map_time);
+fprintf(fileID3, '  路径搜索: %.2f 秒\n', sum(path_planning_times));
+fprintf(fileID3, '\n各路径规划时间:\n');
+for k = 1:size_set
+    fprintf(fileID3, '  路径 %d: %.2f 秒\n', k, path_planning_times(k));
+end
+fclose(fileID3);
+
+%% 生成纯文本的路径结果报告
+fileID4 = fopen('path_results_summary.txt', 'w');
+fprintf(fileID4, '路径规划结果汇总\n');
+fprintf(fileID4, '==================\n');
+fprintf(fileID4, '生成时间: %s\n\n', datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+
+success_count = 0;
+for k = 1:length(PATHS)
+    path = PATHS{k};
+    if ~isempty(path)
+        success_count = success_count + 1;
+        fprintf(fileID4, '路径 %d: 成功，点数量 = %d\n', k, size(path,1));
+        fprintf(fileID4, '  起点: (%.2f, %.2f)\n', path(1,1), path(1,2));
+        fprintf(fileID4, '  终点: (%.2f, %.2f)\n', path(end,1), path(end,2));
+        
+        % 计算路径长度
+        path_length = 0;
+        for i = 2:size(path,1)
+            dx = path(i,1) - path(i-1,1);
+            dy = path(i,2) - path(i-1,2);
+            path_length = path_length + sqrt(dx^2 + dy^2);
+        end
+        fprintf(fileID4, '  路径长度: %.2f\n\n', path_length);
+    else
+        fprintf(fileID4, '路径 %d: 失败\n\n', k);
+    end
+end
+
+fprintf(fileID4, '\n统计信息:\n');
+fprintf(fileID4, '  总路径数: %d\n', length(PATHS));
+fprintf(fileID4, '  成功路径: %d (%.1f%%)\n', success_count, success_count/length(PATHS)*100);
+fprintf(fileID4, '  失败路径: %d (%.1f%%)\n', length(PATHS)-success_count, (length(PATHS)-success_count)/length(PATHS)*100);
+fclose(fileID4);
+
+%% 输出最终总结到控制台
+fprintf('\n====================================\n');
+fprintf('所有计算完成！\n');
+fprintf('总运行时间: %.2f 秒\n', total_time);
+fprintf('平均每路径: %.2f 秒\n', total_time/size_set);
+fprintf('\n结果文件已生成:\n');
+fprintf('  - guaidian.txt              (拐点数据)\n');
+fprintf('  - guaidian_extended.txt     (扩展拐点数据)\n');
+fprintf('  - runtime_summary.txt       (运行时间统计)\n');
+fprintf('  - path_results_summary.txt  (路径结果汇总)\n');
+fprintf('  - path_planning_log.txt     (详细运行日志)\n');
+fprintf('====================================\n');
